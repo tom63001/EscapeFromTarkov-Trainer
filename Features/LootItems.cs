@@ -138,11 +138,12 @@ internal class LootItems : PointOfInterests
 				continue;
 
 			var position = valueTransform.position;
-			FindItemsInRootItem(records, rootItem, position);
+			var owner = rootItem.TemplateId.LocalizedShortName();
+			FindItemsInRootItem(records, rootItem, position, owner);
 		}
 	}
 
-	private void FindItemsInRootItem(List<PointOfInterest> records, Item? rootItem, Vector3 position)
+	private void FindItemsInRootItem(List<PointOfInterest> records, Item? rootItem, Vector3 position, string? owner)
 	{
 		var items = rootItem?
 			.GetAllItems()?
@@ -156,7 +157,7 @@ internal class LootItems : PointOfInterests
 			if (!item.IsValid() || item.IsFiltered())
 				continue;
 
-			TryAddRecordIfTracked(item, records, position, item.Owner?.RootItem?.TemplateId.LocalizedShortName()); // nicer than ItemOwner.ContainerName which is full caps
+			TryAddRecordIfTracked(item, records, position, owner);
 		}
 	}
 
@@ -175,7 +176,7 @@ internal class LootItems : PointOfInterests
 			if (lootItem is Corpse corpse)
 			{
 				if (SearchInsideCorpses)
-					FindItemsInRootItem(records, corpse.ItemOwner?.RootItem, position);
+					FindItemsInRootItem(records, corpse.ItemOwner?.RootItem, position, nameof(Corpse));
 
 				continue;
 			}
