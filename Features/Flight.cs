@@ -67,7 +67,9 @@ internal class Flight : ToggleFeature
 		var heading = GetMovementHeading(camera.transform);
 		if (heading != Vector3.zero)
 		{
-			var speed = Input.GetKey(FastMode) ? FastMovementSpeed : MovementSpeed;
+			var speed = FastMode != KeyCode.None && Input.GetKey(FastMode)
+				? Mathf.Max(MovementSpeed, FastMovementSpeed)
+				: MovementSpeed;
 			_flightPosition += heading.normalized * speed * Time.deltaTime;
 		}
 

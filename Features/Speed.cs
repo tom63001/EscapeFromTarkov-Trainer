@@ -21,6 +21,9 @@ internal class Speed : HoldFeature
 
 	protected override void UpdateWhenHold()
 	{
+		if (FeatureFactory.GetFeature<Flight>() is { Enabled: true })
+			return;
+
 		var player = GameState.Current?.LocalPlayer;
 		if (!player.IsValid())
 			return;
