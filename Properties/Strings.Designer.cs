@@ -1674,11 +1674,38 @@ namespace EFT.Trainer.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Ascend.
+        /// </summary>
+        internal static string PropertyAscend {
+            get {
+                return ResourceManager.GetString("PropertyAscend", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Cultist colors.
         /// </summary>
         internal static string PropertyCultistColors {
             get {
                 return ResourceManager.GetString("PropertyCultistColors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Descend.
+        /// </summary>
+        internal static string PropertyDescend {
+            get {
+                return ResourceManager.GetString("PropertyDescend", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Disable collisions.
+        /// </summary>
+        internal static string PropertyDisableCollisions {
+            get {
+                return ResourceManager.GetString("PropertyDisableCollisions", resourceCulture);
             }
         }
         

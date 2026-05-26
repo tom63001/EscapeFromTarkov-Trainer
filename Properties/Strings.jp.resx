@@ -657,8 +657,17 @@
   <data name="PropertyColor" xml:space="preserve">
     <value>カラー</value>
   </data>
+  <data name="PropertyAscend" xml:space="preserve">
+    <value>上昇</value>
+  </data>
   <data name="PropertyCultistColors" xml:space="preserve">
     <value>カルトカラー</value>
+  </data>
+  <data name="PropertyDescend" xml:space="preserve">
+    <value>下降</value>
+  </data>
+  <data name="PropertyDisableCollisions" xml:space="preserve">
+    <value>衝突を無効化</value>
   </data>
   <data name="PropertyDisplayTime" xml:space="preserve">
     <value>時刻表示</value>

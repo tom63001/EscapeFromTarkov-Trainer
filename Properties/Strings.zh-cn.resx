@@ -658,8 +658,17 @@
   <data name="PropertyColor" xml:space="preserve">
     <value>颜色</value>
   </data>
+  <data name="PropertyAscend" xml:space="preserve">
+    <value>上升</value>
+  </data>
   <data name="PropertyCultistColors" xml:space="preserve">
     <value>邪教徒颜色</value>
+  </data>
+  <data name="PropertyDescend" xml:space="preserve">
+    <value>下降</value>
+  </data>
+  <data name="PropertyDisableCollisions" xml:space="preserve">
+    <value>禁用碰撞</value>
   </data>
   <data name="PropertyDisplayTime" xml:space="preserve">
     <value>显示时间</value>

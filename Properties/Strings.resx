@@ -657,8 +657,17 @@ Colors are stored as an array of 'RGBA' floats</value>
   <data name="PropertyColor" xml:space="preserve">
     <value>Color</value>
   </data>
+  <data name="PropertyAscend" xml:space="preserve">
+    <value>Ascend</value>
+  </data>
   <data name="PropertyCultistColors" xml:space="preserve">
     <value>Cultist colors</value>
+  </data>
+  <data name="PropertyDescend" xml:space="preserve">
+    <value>Descend</value>
+  </data>
+  <data name="PropertyDisableCollisions" xml:space="preserve">
+    <value>Disable collisions</value>
   </data>
   <data name="PropertyDisplayTime" xml:space="preserve">
     <value>Display time</value>
