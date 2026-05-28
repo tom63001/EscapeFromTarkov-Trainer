@@ -1,4 +1,6 @@
-﻿using EFT.Trainer.Configuration;
+﻿using System.Collections.Generic;
+using EFT.CameraControl;
+using EFT.Trainer.Configuration;
 using EFT.Trainer.Extensions;
 using EFT.Trainer.Properties;
 using JetBrains.Annotations;
@@ -38,6 +40,9 @@ internal class FreeCamera : ToggleFeature
 	[ConfigurationProperty(Order = 25)]
 	public KeyCode Teleport { get; set; } = KeyCode.T;
 
+	[ConfigurationProperty(Order = 26)]
+	public bool ShowPlayerBody { get; set; } = true;
+
 	[ConfigurationProperty(Order = 30)]
 	public float FreeLookSensitivity { get; set; } = 3f;
 
@@ -47,26 +52,86 @@ internal class FreeCamera : ToggleFeature
 	[ConfigurationProperty(Order = 32)]
 	public float FastMovementSpeed { get; set; } = 100f;
 
+	private bool _usingThirdPersonBody = false;
+	private Vector3? _freeCameraPosition = null;
+	private Vector2? _freeCameraRotation = null;
+	private readonly Dictionary<Renderer, bool> _playerRendererStates = [];
 
-	private void TogglePlayerActiveStatusIfNeeded()
+#pragma warning disable IDE0060
+	[UsedImplicitly]
+	private static bool SkipPlayerCameraControllerPrefix(PlayerCameraController __instance)
+	{
+		return FeatureFactory.GetFeature<FreeCamera>() is not { Enabled: true };
+	}
+#pragma warning restore IDE0060
+
+	private void UpdatePlayerRenderState()
 	{
 		var player = GameState.Current?.LocalPlayer;
 		if (!player.IsValid())
 			return;
 
-		var playerGameObject = player.gameObject;
-		if (playerGameObject.activeSelf == Enabled)
-			playerGameObject.SetActive(!Enabled);
+		if (!Enabled)
+		{
+			if (_usingThirdPersonBody)
+			{
+				RestoreFirstPersonBody(player);
+				_usingThirdPersonBody = false;
+			}
+
+			RestorePlayerRenderers();
+			return;
+		}
+
+		if (!ShowPlayerBody)
+		{
+			if (_usingThirdPersonBody)
+			{
+				RestoreFirstPersonBody(player);
+				_usingThirdPersonBody = false;
+			}
+
+			SetPlayerBodyRendererVisibility(player, false);
+			return;
+		}
+
+		RestorePlayerRenderers();
+		ForceThirdPersonBody(player);
+		_usingThirdPersonBody = true;
 	}
 
 	protected override void Update()
 	{
 		base.Update();
 
-		TogglePlayerActiveStatusIfNeeded();
+		UpdatePlayerRenderState();
 	}
 
 	protected override void UpdateWhenEnabled()
+	{
+		HarmonyPatchOnce(harmony =>
+		{
+			HarmonyPrefix(harmony, typeof(PlayerCameraController), nameof(PlayerCameraController.Update), nameof(SkipPlayerCameraControllerPrefix));
+			HarmonyPrefix(harmony, typeof(PlayerCameraController), nameof(PlayerCameraController.LateUpdate), nameof(SkipPlayerCameraControllerPrefix));
+			HarmonyPrefix(harmony, typeof(PlayerCameraController), nameof(PlayerCameraController.FixedUpdate), nameof(SkipPlayerCameraControllerPrefix));
+			HarmonyPrefix(harmony, typeof(PlayerCameraController), nameof(PlayerCameraController.UpdatePointOfView), nameof(SkipPlayerCameraControllerPrefix));
+		});
+	}
+
+	protected override void UpdateWhenDisabled()
+	{
+		_freeCameraPosition = null;
+		_freeCameraRotation = null;
+		RestorePlayerRenderers();
+	}
+
+	private void LateUpdate()
+	{
+		if (Enabled)
+			UpdateFreeCamera();
+	}
+
+	private void UpdateFreeCamera()
 	{
 		var camera = GameState.Current?.Camera;
 		if (camera == null)
@@ -77,26 +142,29 @@ internal class FreeCamera : ToggleFeature
 
 		var heading = Vector3.zero;
 		var cameraTransform = camera.transform;
+		_freeCameraPosition ??= cameraTransform.position;
+		_freeCameraRotation ??= new Vector2(cameraTransform.localEulerAngles.y, cameraTransform.localEulerAngles.x);
+		var cameraRotation = Quaternion.Euler(_freeCameraRotation.Value.y, _freeCameraRotation.Value.x, 0f);
 
 		if (Input.GetKey(Left))
-			heading = -cameraTransform.right;
+			heading = -(cameraRotation * Vector3.right);
 
 		if (Input.GetKey(Right))
-			heading = cameraTransform.right;
+			heading = cameraRotation * Vector3.right;
 
 		if (Input.GetKey(Forward))
-			heading = cameraTransform.forward;
+			heading = cameraRotation * Vector3.forward;
 
 		if (Input.GetKey(Backward))
-			heading = -cameraTransform.forward;
+			heading = -(cameraRotation * Vector3.forward);
 
 		if (heading != Vector3.zero)
-			cameraTransform.position += movementSpeed * Time.deltaTime * heading;
+			_freeCameraPosition = _freeCameraPosition.Value + movementSpeed * Time.deltaTime * heading;
 
-		var localEulerAngles = cameraTransform.localEulerAngles;
-		var newRotationX = localEulerAngles.y + Input.GetAxis(MouseXAxis) * FreeLookSensitivity;
-		var newRotationY = localEulerAngles.x - Input.GetAxis(MouseYAxis) * FreeLookSensitivity;
-		cameraTransform.localEulerAngles = new Vector3(newRotationY, newRotationX, 0f);
+		var newRotationX = _freeCameraRotation.Value.x + Input.GetAxis(MouseXAxis) * FreeLookSensitivity;
+		var newRotationY = _freeCameraRotation.Value.y - Input.GetAxis(MouseYAxis) * FreeLookSensitivity;
+		_freeCameraRotation = new Vector2(newRotationX, newRotationY);
+		cameraTransform.SetPositionAndRotation(_freeCameraPosition.Value, Quaternion.Euler(newRotationY, newRotationX, 0f));
 
 		if (Input.GetKey(Teleport))
 		{
@@ -104,12 +172,77 @@ internal class FreeCamera : ToggleFeature
 			if (!player.IsValid())
 				return;
 
-			var position = new Vector3(cameraTransform.position.x, cameraTransform.position.y - 2f, cameraTransform.position.z);
+			var position = new Vector3(_freeCameraPosition.Value.x, _freeCameraPosition.Value.y - 2f, _freeCameraPosition.Value.z);
 			var playerGameObject = player.gameObject;
 
-			playerGameObject.transform.SetPositionAndRotation(position, cameraTransform.rotation);
-			playerGameObject.SetActive(true);
+			playerGameObject.transform.SetPositionAndRotation(position, Quaternion.Euler(newRotationY, newRotationX, 0f));
+			RestoreFirstPersonBody(player);
+			_usingThirdPersonBody = false;
+			_freeCameraPosition = null;
+			_freeCameraRotation = null;
+			RestorePlayerRenderers();
 			Enabled = false;
 		}
+	}
+
+	private static void ForceThirdPersonBody(Player player)
+	{
+		player.SwitchRenderer(true);
+		player.PlayerBody.UpdatePlayerRenders(EPointOfView.ThirdPerson, player.Side);
+
+		foreach (var skin in player.PlayerBody.BodySkins.Values)
+		{
+			if (skin == null)
+				continue;
+
+			foreach (var renderer in skin.GetRenderers())
+			{
+				if (renderer == null)
+					continue;
+
+				renderer.allowOcclusionWhenDynamic = false;
+				renderer.forceRenderingOff = false;
+				renderer.enabled = true;
+			}
+		}
+	}
+
+	private static void RestoreFirstPersonBody(Player player)
+	{
+		player.SwitchRenderer(true);
+		player.PlayerBody.UpdatePlayerRenders(EPointOfView.FirstPerson, player.Side);
+	}
+
+	private void SetPlayerBodyRendererVisibility(Player player, bool visible)
+	{
+		foreach (var skin in player.PlayerBody.BodySkins.Values)
+		{
+			if (skin == null)
+				continue;
+
+			foreach (var renderer in skin.GetRenderers())
+			{
+				if (renderer == null)
+					continue;
+
+				if (!_playerRendererStates.ContainsKey(renderer))
+					_playerRendererStates[renderer] = renderer.enabled;
+
+				renderer.enabled = visible;
+			}
+		}
+	}
+
+	private void RestorePlayerRenderers()
+	{
+		foreach (var rendererState in _playerRendererStates)
+		{
+			if (rendererState.Key == null)
+				continue;
+
+			rendererState.Key.enabled = rendererState.Value;
+		}
+
+		_playerRendererStates.Clear();
 	}
 }

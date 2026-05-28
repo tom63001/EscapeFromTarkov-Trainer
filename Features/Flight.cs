@@ -1,4 +1,7 @@
-﻿using EFT.Trainer.Configuration;
+﻿using System.Diagnostics.CodeAnalysis;
+using EFT.Ballistics;
+using EFT.HealthSystem;
+using EFT.Trainer.Configuration;
 using EFT.Trainer.Extensions;
 using JetBrains.Annotations;
 using UnityEngine;
@@ -46,8 +49,24 @@ internal class Flight : ToggleFeature
 	[ConfigurationProperty(Order = 40)]
 	public bool DisableCollisions { get; set; } = true;
 
+	[ConfigurationProperty(Order = 41)]
+	public bool PreventFallDamage { get; set; } = true;
+
 	private Vector3? _flightPosition = null;
 	private bool _wasActive = false;
+	private float _fallDamageProtectionUntil = 0f;
+
+#pragma warning disable IDE0060
+	[UsedImplicitly]
+	[SuppressMessage("ReSharper", "InconsistentNaming")]
+	protected static bool ReceiveDamagePrefix(float damage, EBodyPart part, EDamageType type, float absorbed, MaterialType special, Player? __instance)
+	{
+		if (type != EDamageType.Fall)
+			return true;
+
+		return !ShouldPreventFallDamage(__instance);
+	}
+#pragma warning restore IDE0060
 
 	protected override void UpdateWhenEnabled()
 	{
@@ -63,6 +82,13 @@ internal class Flight : ToggleFeature
 		_wasActive = true;
 
 		SetPlayerCollision(player, !DisableCollisions);
+		SuppressFallTracking(player);
+		_fallDamageProtectionUntil = Time.realtimeSinceStartup + 1.5f;
+
+		HarmonyPatchOnce(harmony =>
+		{
+			HarmonyPrefix(harmony, typeof(Player), nameof(Player.ReceiveDamage), nameof(ReceiveDamagePrefix));
+		});
 
 		var heading = GetMovementHeading(camera.transform);
 		if (heading != Vector3.zero)
@@ -82,10 +108,16 @@ internal class Flight : ToggleFeature
 			return;
 
 		var player = GameState.Current?.LocalPlayer;
-		if (player.IsValid() && FeatureFactory.GetFeature<NoCollision>() is not { Enabled: true })
-			SetPlayerCollision(player, true);
+		if (player.IsValid())
+		{
+			if (FeatureFactory.GetFeature<NoCollision>() is not { Enabled: true })
+				SetPlayerCollision(player, true);
+
+			SuppressFallTracking(player);
+		}
 
 		_flightPosition = null;
+		_fallDamageProtectionUntil = Time.realtimeSinceStartup + 1.5f;
 		_wasActive = false;
 	}
 
@@ -123,5 +155,30 @@ internal class Flight : ToggleFeature
 
 			rigidbody.detectCollisions = enabled;
 		}
+	}
+
+	private static bool ShouldPreventFallDamage(Player? player)
+	{
+		var feature = FeatureFactory.GetFeature<Flight>();
+		if (feature is not { PreventFallDamage: true })
+			return false;
+
+		if (player is not { IsYourPlayer: true })
+			return false;
+
+		return feature.Enabled || Time.realtimeSinceStartup <= feature._fallDamageProtectionUntil;
+	}
+
+	private static void SuppressFallTracking(Player player)
+	{
+		var movementContext = player.MovementContext;
+		if (movementContext == null)
+			return;
+
+		movementContext.FallHeight = 0f;
+		movementContext.JumpHeight = 0f;
+		movementContext.FreefallTime = 0f;
+		movementContext.StartFallingHeight = player.Transform.position.y;
+		movementContext.IsGrounded = true;
 	}
 }
