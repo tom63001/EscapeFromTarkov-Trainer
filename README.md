@@ -3,8 +3,9 @@
 
 [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey?logo=github&style=flat-square)](https://github.com/sponsors/sailro)
 
-# This project has been discontinued
-> After 5 years of proud service, this project has been discontinued. With the release of version 1.0 and, above all, the switch to IL2CPP technology, internal modding is going to be completely different (and much more complex).
+# Maintenance status
+> This fork is now maintained by [tom63001](https://github.com/tom63001) for SPT/offline use.
+> The original upstream project was discontinued after 5 years of service. With the release of version 1.0 and, above all, the switch to IL2CPP technology, internal modding is going to be completely different (and much more complex).
 > It has been really interesting to find techniques for modding the game, compiling on the go and allowing features to be added easily. Thanks !
 
 *I'm not responsible for any consequences that result from using this code. BattleState / BattlEye will ban you if you try to use it 'live'. Use it safely offline with [SPT](https://sp-tarkov.com/).*
